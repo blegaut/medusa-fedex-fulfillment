@@ -14,6 +14,7 @@ import {
 import {
   FedexAddress,
   fedexMapping,
+  FedexCustomsLineInput,
   FedexRateRequestItem,
   FedexShippingRate,
 } from "../../fedex-api/types"
@@ -22,6 +23,35 @@ import { getShippingRates } from "../../fedex-api/get-shipping-rates"
 import createFedexShipmentWorkflow from "../../workflows/create-shipment"
 import getFedexCredentials from "../../workflows/get-credentials"
 import { SetupCredentialsInput } from "../../api/admin/fedex/route"
+import {
+  isCrossBorderFedexLane,
+  normalizeFedexCountryCode,
+  resolveFedexStateOrProvinceCode,
+} from "../../utils/fedex-address-region"
+import { buildFedexCustomsLines } from "../../utils/fedex-customs-lines"
+
+function orderLikeFromShippingPriceContext(
+  context: CalculateShippingOptionPriceDTO["context"]
+): Partial<FulfillmentOrderDTO> | undefined {
+  const c = context as Record<string, unknown>
+  const order = c.order
+  if (order && typeof order === "object") {
+    return order as Partial<FulfillmentOrderDTO>
+  }
+  const cart = c.cart
+  if (cart && typeof cart === "object") {
+    const cartObj = cart as Record<string, unknown>
+    return {
+      currency_code:
+        typeof cartObj.currency_code === "string"
+          ? cartObj.currency_code
+          : undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      items: (cartObj.items as any) ?? undefined,
+    }
+  }
+  return undefined
+}
 
 type InjectedDependencies = {
   logger: Logger
@@ -155,10 +185,6 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       throw new Error("Missing shipping address in context")
     }
 
-    if (!context.shipping_address.province) {
-      throw new Error("Missing shipping address province in context")
-    }
-
     if (!context.shipping_address.postal_code) {
       throw new Error("Missing shipping address postal code in context")
     }
@@ -176,10 +202,6 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       throw new Error("Missing store address in context")
     }
 
-    if (!context.from_location.address.province) {
-      throw new Error("Missing store address state in context")
-    }
-
     if (!context.from_location.address.postal_code) {
       throw new Error("Missing store address zip in context")
     }
@@ -188,16 +210,28 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       throw new Error("Missing store address country in context")
     }
 
+    const originState = resolveFedexStateOrProvinceCode(
+      context.from_location.address.country_code,
+      context.from_location.address.province
+    );
     const originAddress: FedexAddress = {
-      stateOrProvinceCode: context.from_location.address.province,
       postalCode: context.from_location.address.postal_code,
-      countryCode: context.from_location.address.country_code,
+      countryCode: normalizeFedexCountryCode(
+        context.from_location.address.country_code
+      ),
+      ...(originState ? { stateOrProvinceCode: originState } : {}),
     }
 
+    const destState = resolveFedexStateOrProvinceCode(
+      context.shipping_address.country_code,
+      context.shipping_address.province
+    );
     const destinationAddress: FedexAddress = {
-      stateOrProvinceCode: context.shipping_address.province,
       postalCode: context.shipping_address.postal_code,
-      countryCode: context.shipping_address.country_code,
+      countryCode: normalizeFedexCountryCode(
+        context.shipping_address.country_code
+      ),
+      ...(destState ? { stateOrProvinceCode: destState } : {}),
     }
 
     const items: FedexRateRequestItem[] = context.items.map(
@@ -209,6 +243,16 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       })
     )
 
+    let customsLines: FedexCustomsLineInput[] | null = null
+    if (isCrossBorderFedexLane(originAddress, destinationAddress)) {
+      customsLines = buildFedexCustomsLines(
+        context.items as Partial<FulfillmentItemDTO>[],
+        orderLikeFromShippingPriceContext(context),
+        items,
+        context.from_location.address.country_code ?? ""
+      )
+    }
+
     const rates: FedexShippingRate[] = await getShippingRates(
       baseUrl,
       token,
@@ -216,6 +260,7 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       originAddress,
       destinationAddress,
       items,
+      customsLines,
       credentials.enable_logs ? this.logger_ : undefined
     )
 

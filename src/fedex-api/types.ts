@@ -6,7 +6,7 @@ export type FedexShippingRate = {
 };
 
 export type FedexAddress = {
-    stateOrProvinceCode: string;
+    stateOrProvinceCode?: string;
     postalCode: string;
     countryCode: string;
     city?: string;

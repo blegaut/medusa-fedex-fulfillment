@@ -6,72 +6,8 @@ import {
     FedexRateRequestItem,
     FedexShipmentResponse,
 } from "./types";
-
-/** True when both addresses have a country and they differ (international lane). */
-function isCrossBorderShipment(origin: FedexAddress, destination: FedexAddress): boolean {
-    const o = origin.countryCode?.trim().toUpperCase();
-    const d = destination.countryCode?.trim().toUpperCase();
-    return Boolean(o && d && o !== d);
-}
-
-/** FedEx recommends ASCII-only strings in create-shipment requests. */
-function toFedexAsciiDescription(input: string, maxLen = 120): string {
-    const stripped = input
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\x20-\x7E]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    return stripped.slice(0, maxLen) || "General merchandise";
-}
-
-/** Harmonized code: digits only, capped for typical FedEx validation. */
-function normalizeHarmonizedCode(raw: string): string {
-    const digits = raw.replace(/\D/g, "");
-    return digits.slice(0, 12) || "6109100012";
-}
-
-/**
- * FedEx Ship API `customsClearanceDetail` for international commodity shipments.
- * @see https://developer.fedex.com/api/en-us/catalog/ship/v1/docs.html
- */
-function buildCustomsClearanceDetail(
-    accountNumber: string,
-    customsLines: FedexCustomsLineInput[]
-): Record<string, unknown> {
-    return {
-        dutiesPayment: {
-            paymentType: "SENDER",
-            payor: {
-                responsibleParty: {
-                    accountNumber: { value: accountNumber },
-                },
-            },
-        },
-        commodities: customsLines.map((line) => {
-            const lineTotal = Math.round(line.unitPrice * line.quantity * 100) / 100;
-            return {
-                description: toFedexAsciiDescription(line.description),
-                countryOfManufacture: line.countryOfManufacture.trim().toUpperCase().slice(0, 2),
-                harmonizedCode: normalizeHarmonizedCode(line.harmonizedCode),
-                quantity: line.quantity,
-                quantityUnits: "EA",
-                weight: {
-                    units: line.weight.units,
-                    value: line.weight.value,
-                },
-                unitPrice: {
-                    amount: line.unitPrice,
-                    currency: line.currency,
-                },
-                customsValue: {
-                    amount: lineTotal,
-                    currency: line.currency,
-                },
-            };
-        }),
-    };
-}
+import { buildCustomsClearanceDetail } from "./build-customs-clearance";
+import { isCrossBorderFedexLane } from "../utils/fedex-address-region";
 
 /**
  * Creates a FedEx shipment fulfillment by sending a request to the FedEx API.
@@ -91,7 +27,7 @@ export const createFulfillment = async (
     customsLines: FedexCustomsLineInput[] | null,
     logger?: Logger
 ): Promise<FedexShipmentResponse> => {
-    const crossBorder = isCrossBorderShipment(origin, destination);
+    const crossBorder = isCrossBorderFedexLane(origin, destination);
     if (crossBorder && (!customsLines || customsLines.length === 0)) {
         throw new Error(
             "FedEx international shipment requires customs line items derived from order/fulfillment data"
