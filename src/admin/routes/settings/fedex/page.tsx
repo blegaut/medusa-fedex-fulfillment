@@ -79,12 +79,11 @@ const FedexSettingsPageInner = () => {
 
       // Focus on the alert component
       document.querySelector(".alert")?.scrollIntoView({ behavior: "smooth" })
-    } catch (error) {
+    } catch {
       // Optionally, show an error message
       setAlert({ type: "error", message: "Failed to save FedEx settings." })
       // Focus on the alert component
       document.querySelector(".alert")?.scrollIntoView({ behavior: "smooth" })
-      console.error(error)
     }
   }
 

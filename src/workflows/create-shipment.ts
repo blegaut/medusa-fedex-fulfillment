@@ -5,6 +5,7 @@ import {
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk";
 import {
+  Logger,
   StockLocationDTO,
   IStockLocationService,
   FulfillmentDTO,
@@ -17,7 +18,7 @@ import {
   ISalesChannelModuleService,
   SalesChannelDTO,
 } from "@medusajs/framework/types";
-import { Modules } from "@medusajs/framework/utils";
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 import {
   FedexAddress,
   FedexContact,
@@ -225,8 +226,10 @@ const createFedexShipment = createStep(
     input: WorkflowInput,
     { container }
   ): Promise<StepResponse<{ shipment: FedexShipmentResponse }>> => {
+    const log = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+
     if (input.debug) {
-      console.log("FedEx create fulfillment started");
+      log.info("FedEx create fulfillment started");
     }
 
     const stockLocationService = container.resolve<IStockLocationService>(
@@ -246,7 +249,7 @@ const createFedexShipment = createStep(
     const location: StockLocationDTO = locations[0];
 
     if (input.debug) {
-      console.log(`Stock Location : ${JSON.stringify(location, null, 2)}`);
+      log.info(`Stock Location : ${JSON.stringify(location, null, 2)}`);
     }
 
     if (!location.address) {
@@ -282,7 +285,7 @@ const createFedexShipment = createStep(
     );
 
     if (input.debug) {
-      console.log(`Order Items : ${JSON.stringify(orderItems, null, 2)}`);
+      log.info(`Order Items : ${JSON.stringify(orderItems, null, 2)}`);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -312,8 +315,8 @@ const createFedexShipment = createStep(
     };
 
     if (input.debug) {
-      console.log(`Origin Address : ${JSON.stringify(originAddress, null, 2)}`);
-      console.log(`Destination Address : ${JSON.stringify(destinationAddress, null, 2)}`);
+      log.info(`Origin Address : ${JSON.stringify(originAddress, null, 2)}`);
+      log.info(`Destination Address : ${JSON.stringify(destinationAddress, null, 2)}`);
     }
 
     const shippingMethodId = input.fulfillment.shipping_option_id;
@@ -337,7 +340,7 @@ const createFedexShipment = createStep(
     const shippingMethodCode: string = shippingOption.data.carrier_code.toString();
 
     if (input.debug) {
-      console.log(`Shipping Method Code: ${shippingMethodCode}`);
+      log.info(`Shipping Method Code: ${shippingMethodCode}`);
     }
 
     const customerContact: FedexContact = {
@@ -385,7 +388,7 @@ const createFedexShipment = createStep(
       orderItems,
       shippingMethodCode,
       customsLines,
-      input.debug ? console : undefined
+      input.debug ? log : undefined
     );
 
     return new StepResponse({ shipment });

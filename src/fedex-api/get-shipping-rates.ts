@@ -9,6 +9,11 @@ type RateReplyDetail = {
   commit?: { transitDays?: { description?: string } };
 };
 
+/** FedEx expects ISO 3166-1 alpha-2 uppercase (Medusa often stores lowercase). */
+function normalizeFedexCountryCode(code: string | undefined): string {
+  return (code ?? "").trim().toUpperCase();
+}
+
 /**
  * Get the FedEx shipping rates.
  * @param baseUrl - The base URL for the FedEx API.
@@ -45,14 +50,14 @@ export const getShippingRates = async (
                 address: {
                     stateOrProvinceCode: origin.stateOrProvinceCode,
                     postalCode: origin.postalCode,
-                    countryCode: origin.countryCode,
+                    countryCode: normalizeFedexCountryCode(origin.countryCode),
                 },
             },
             recipient: {
                 address: {
                     stateOrProvinceCode: destination.stateOrProvinceCode,
                     postalCode: destination.postalCode,
-                    countryCode: destination.countryCode,
+                    countryCode: normalizeFedexCountryCode(destination.countryCode),
                 },
             },
             pickupType: "DROPOFF_AT_FEDEX_LOCATION",
@@ -78,10 +83,24 @@ export const getShippingRates = async (
     });
 
     if (!response.ok) {
-        if (logger) {
-            logger.error(`FedEx rate quote request failed: ${response.statusText}`);
+        const bodyText = await response.text().catch(() => "");
+        let logBody = bodyText;
+        try {
+            logBody = JSON.stringify(JSON.parse(bodyText), null, 2);
+        } catch {
+            /* keep raw bodyText */
         }
-        throw new Error(`FedEx rate quote request failed: ${response.statusText}`);
+        const headline = `FedEx rate quote request failed [${response.status} ${response.statusText}]`;
+        if (logger) {
+            logger.error(`${headline}\n${logBody || "(empty body)"}`);
+        }
+        const forThrow =
+            bodyText.length > 8000
+                ? `${bodyText.slice(0, 8000)}…(truncated)`
+                : bodyText;
+        throw new Error(
+            `${headline}${forThrow ? `: ${forThrow}` : ""}`
+        );
     }
 
     const result = await response.json();

@@ -2,6 +2,8 @@ import {
   MedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
+import type { Logger } from "@medusajs/framework/types"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { PostFedexSettings } from "./validator"
 import { TransactionStepError } from "@medusajs/framework/orchestration"
 import { z } from "zod"
@@ -26,6 +28,7 @@ export const POST = async (
   req: MedusaRequest<SetupCredentialsInput>,
   res: MedusaResponse<SetupCredentialsResponse>
 ) => {
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as Logger
   try {
     const input: SetupCredentialsInput = req.body
 
@@ -44,7 +47,9 @@ export const POST = async (
 
     res.json(result)
   } catch (error) {
-    console.error("Error setting up FedEx credentials:", error);
+    logger.error(
+      `Error setting up FedEx credentials: ${error instanceof Error ? error.message : String(error)}`
+    )
     return res.status(500).json({
       success: false,
       errors: ["Internal Server Error"],
@@ -63,6 +68,7 @@ export const GET = async (
   req: MedusaRequest,
   res: MedusaResponse<SetupCredentialsInput | null>
 ) => {
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as Logger
   try {
       const { result, errors } = await getCredentialsWorkflow()
         .run({
@@ -70,13 +76,17 @@ export const GET = async (
         })
 
       if ((errors && errors.length > 0)) {
-        console.log("Errors getting FedEx credentials:", JSON.stringify(errors, null, 2));
+        logger.info(
+          `Errors getting FedEx credentials: ${JSON.stringify(errors, null, 2)}`
+        )
         return res.status(400).json(null)
       }
 
       res.json(result);
   } catch (error) {
-    console.log("Error getting FedEx credentials:", error);
+    logger.error(
+      `Error getting FedEx credentials: ${error instanceof Error ? error.message : String(error)}`
+    )
     return res.status(500).json(null);
   }
 }

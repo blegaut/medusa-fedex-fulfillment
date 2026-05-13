@@ -89,7 +89,7 @@ export const createFulfillment = async (
     items: FedexRateRequestItem[],
     shippingMethod: string,
     customsLines: FedexCustomsLineInput[] | null,
-    logger?: Logger | Console
+    logger?: Logger
 ): Promise<FedexShipmentResponse> => {
     const crossBorder = isCrossBorderShipment(origin, destination);
     if (crossBorder && (!customsLines || customsLines.length === 0)) {
@@ -144,7 +144,7 @@ export const createFulfillment = async (
     };
 
     if (logger) {
-        logger.log(`FedEx create shipment payload: ${JSON.stringify(shipmentPayload, null, 2)}`);
+        logger.info(`FedEx create shipment payload: ${JSON.stringify(shipmentPayload, null, 2)}`);
     }
 
     const response = await fetch(`${baseUrl}/ship/v1/shipments`, {
@@ -167,7 +167,7 @@ export const createFulfillment = async (
     const result = await response.json();
 
     if (logger) {
-        logger.log(`FedEx create shipment response: ${JSON.stringify(result, null, 2)}`);
+        logger.info(`FedEx create shipment response: ${JSON.stringify(result, null, 2)}`);
     }
 
     const shipmentDetail = result.output?.transactionShipments?.[0] || {};

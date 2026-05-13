@@ -4,6 +4,8 @@ import {
   StepResponse,
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk";
+import type { Logger } from "@medusajs/framework/types";
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 import { FEDEX_SETTINGS_MODULE } from "../modules/setting";
 import { SetupCredentialsInput } from "../api/admin/fedex/route";
@@ -19,12 +21,15 @@ const getDatabaseCredentials = createStep(
     _input,
     { container }
   ): Promise<StepResponse<SetupCredentialsInput | null>> => {
+    const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
     try {
       const fedexSettingService: FedexSettingsModuleService = container.resolve(FEDEX_SETTINGS_MODULE)
       const result = await fedexSettingService.getCredentials();
       return new StepResponse(result);
     } catch (error) {
-      console.error("Error getting FedEx credentials from database:", error);
+      logger.error(
+        `Error getting FedEx credentials from database: ${error instanceof Error ? error.message : String(error)}`
+      );
       return new StepResponse(null);
     }
   }
