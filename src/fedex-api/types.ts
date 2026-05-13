@@ -84,7 +84,7 @@ export const fedexMapping: Record<string, string> = {
     "FedEx Europe First International Priority": "EUROPE_FIRST_INTERNATIONAL_PRIORITY",
     "FedEx International Priority Freight": "INTERNATIONAL_PRIORITY_FREIGHT",
     "FedEx International Economy Freight": "INTERNATIONAL_ECONOMY_FREIGHT",
-    "FedEx International Connect Plus": "INTERNATIONAL_CONNECT_PLUS",
+    "FedEx International Connect Plus": "FEDEX_INTERNATIONAL_CONNECT_PLUS",
     "FedEx International Priority Express": "INTERNATIONAL_PRIORITY_EXPRESS",
     "FedEx International Distribution Freight": "INTERNATIONAL_DISTRIBUTION_FREIGHT",
     "FedEx International Distribution Economy": "INTERNATIONAL_DISTRIBUTION_ECONOMY",

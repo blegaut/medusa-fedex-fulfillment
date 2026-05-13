@@ -65,6 +65,11 @@ type Options = {
   isSandbox: boolean
   enableLogs: boolean
   weightUnitOfMeasure?: "LB" | "KG"
+  /**
+   * Multiplier on FedEx freight after converting to USD (e.g. **1.03** = 3% for conversion + payment).
+   * Defaults to {@link DEFAULT_SHIPPING_USD_FEE_MULTIPLIER} when omitted.
+   */
+  shippingUsdFeeMultiplier?: number
 }
 
 class FedexProviderService extends AbstractFulfillmentProviderService {
@@ -261,7 +266,8 @@ class FedexProviderService extends AbstractFulfillmentProviderService {
       destinationAddress,
       items,
       customsLines,
-      credentials.enable_logs ? this.logger_ : undefined
+      credentials.enable_logs ? this.logger_ : undefined,
+      this.options_.shippingUsdFeeMultiplier
     )
 
     // Find matching rate

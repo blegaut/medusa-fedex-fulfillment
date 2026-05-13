@@ -98,7 +98,9 @@ To install the FedEx Fulfillment Integration, follow these steps:
           accountNumber: "accountNumber", // FedEx Account Number
           isSandbox: true, // Enable sandbox mode for testing
           enableLogs: true, // Enable logging
-          weightUnitOfMeasure: "LB" // Weight unit of measure
+          weightUnitOfMeasure: "LB", // Weight unit of measure
+          // Optional: multiplier after converting FedEx charge to USD (default 1.03 = 3% conversion/payment fee)
+          // shippingUsdFeeMultiplier: 1.03,
          },
         },
       ],

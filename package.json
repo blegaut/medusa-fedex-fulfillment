@@ -1,6 +1,6 @@
 {
   "name": "@blegaut/medusa-v2-fedex-fulfillment",
-  "version": "1.1.4",
+  "version": "1.1.6",
   "description": "FedEx fulfillment provider for Medusa v2 — Papapo fork with international customs, major-unit pricing (Medusa v2), and extended label metadata. Based on @igorppbr/medusa-v2-fedex-fulfillment.",
   "author": "Bernard Légaut (fork); original by Igor Ludgero Miura <igorlmiura@gmail.com>",
   "license": "MIT",

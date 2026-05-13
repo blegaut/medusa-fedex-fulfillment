@@ -11,11 +11,16 @@ import {
   normalizeFedexCountryCode,
   resolveFedexStateOrProvinceCode,
 } from "../utils/fedex-address-region";
+import {
+  fedexNetChargeToUsdWithFee,
+  pickRatedShipmentDetail,
+  type RatedShipmentDetailLike,
+} from "./fedex-rate-usd";
 
 type RateReplyDetail = {
   serviceType: string;
   serviceName: string;
-  ratedShipmentDetails: { totalNetCharge: number }[];
+  ratedShipmentDetails?: RatedShipmentDetailLike[];
   commit?: { transitDays?: { description?: string } };
 };
 
@@ -35,6 +40,7 @@ function buildRatePartyAddress(addr: FedexAddress): Record<string, unknown> {
 /**
  * Get the FedEx shipping rates.
  * @param customsLines - When origin/destination countries differ, pass commodity lines for `customsClearanceDetail` (Rate API).
+ * @param usdFeeMultiplier - Applied after USD conversion (default 1.03 = 3%). Override via provider options.
  */
 export const getShippingRates = async (
   baseUrl: string,
@@ -44,7 +50,8 @@ export const getShippingRates = async (
   destination: FedexAddress,
   items: FedexRateRequestItem[],
   customsLines: FedexCustomsLineInput[] | null | undefined,
-  logger?: Logger
+  logger?: Logger,
+  usdFeeMultiplier?: number
 ): Promise<FedexShippingRate[]> => {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("Invalid items array");
@@ -127,11 +134,18 @@ export const getShippingRates = async (
   return Array.isArray(result.output?.rateReplyDetails)
     ? result.output.rateReplyDetails.map((r: RateReplyDetail) => {
         const rawTransit = r.commit?.transitDays?.description ?? "";
+        const rated = pickRatedShipmentDetail(r.ratedShipmentDetails);
+        if (!rated) {
+          throw new Error(
+            `FedEx rate reply missing ratedShipmentDetails for service ${r.serviceType}`
+          );
+        }
+        const priceUsd = fedexNetChargeToUsdWithFee(rated, usdFeeMultiplier);
 
         return {
           code: r.serviceType,
           name: r.serviceName,
-          price: r.ratedShipmentDetails[0].totalNetCharge,
+          price: priceUsd,
           estimatedDelivery: rawTransit,
         };
       })
