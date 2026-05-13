@@ -70,7 +70,7 @@ export const GET = async (
 ) => {
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as Logger
   try {
-      const { result, errors } = await getCredentialsWorkflow()
+      const { result, errors } = await getCredentialsWorkflow(req.scope)
         .run({
           input: {}
         })

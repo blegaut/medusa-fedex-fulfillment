@@ -5,7 +5,6 @@ import {
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk";
 import {
-  Logger,
   StockLocationDTO,
   IStockLocationService,
   FulfillmentDTO,
@@ -18,7 +17,7 @@ import {
   ISalesChannelModuleService,
   SalesChannelDTO,
 } from "@medusajs/framework/types";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { Modules } from "@medusajs/framework/utils";
 import {
   FedexAddress,
   FedexContact,
@@ -28,6 +27,7 @@ import {
 } from "../fedex-api/types";
 import { createFulfillment } from "../fedex-api/create-fulfillment";
 import { clampPositiveMajor, readMedusaMajorAmount } from "../utils/medusa-money";
+import { resolveWorkflowLogger } from "../utils/workflow-logger";
 
 type WorkflowInput = {
   token: string;
@@ -226,7 +226,7 @@ const createFedexShipment = createStep(
     input: WorkflowInput,
     { container }
   ): Promise<StepResponse<{ shipment: FedexShipmentResponse }>> => {
-    const log = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+    const log = resolveWorkflowLogger(container);
 
     if (input.debug) {
       log.info("FedEx create fulfillment started");

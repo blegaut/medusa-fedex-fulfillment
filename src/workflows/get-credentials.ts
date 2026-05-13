@@ -4,10 +4,8 @@ import {
   StepResponse,
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk";
-import type { Logger } from "@medusajs/framework/types";
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
-
 import { FEDEX_SETTINGS_MODULE } from "../modules/setting";
+import { resolveWorkflowLogger } from "../utils/workflow-logger";
 import { SetupCredentialsInput } from "../api/admin/fedex/route";
 import FedexSettingsModuleService from "../modules/setting/service";
 
@@ -21,7 +19,7 @@ const getDatabaseCredentials = createStep(
     _input,
     { container }
   ): Promise<StepResponse<SetupCredentialsInput | null>> => {
-    const logger = container.resolve(ContainerRegistrationKeys.LOGGER) as Logger;
+    const logger = resolveWorkflowLogger(container);
     try {
       const fedexSettingService: FedexSettingsModuleService = container.resolve(FEDEX_SETTINGS_MODULE)
       const result = await fedexSettingService.getCredentials();
