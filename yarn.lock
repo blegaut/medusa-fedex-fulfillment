@@ -1074,6 +1074,56 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@blegaut/medusa-v2-fedex-fulfillment@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@blegaut/medusa-v2-fedex-fulfillment@workspace:."
+  dependencies:
+    "@eslint/js": "npm:^9.36.0"
+    "@medusajs/admin-sdk": "npm:^2.5.0"
+    "@medusajs/cli": "npm:^2.5.0"
+    "@medusajs/framework": "npm:^2.5.0"
+    "@medusajs/icons": "npm:^2.5.0"
+    "@medusajs/medusa": "npm:^2.5.0"
+    "@medusajs/test-utils": "npm:^2.5.0"
+    "@medusajs/ui": "npm:^4.0.4"
+    "@mikro-orm/cli": "npm:^6.4.3"
+    "@mikro-orm/core": "npm:^6.4.3"
+    "@mikro-orm/knex": "npm:^6.4.3"
+    "@mikro-orm/migrations": "npm:^6.4.3"
+    "@mikro-orm/postgresql": "npm:^6.4.3"
+    "@swc/core": "npm:^1.5.7"
+    "@types/node": "npm:^20.0.0"
+    "@types/react": "npm:^18.3.2"
+    "@types/react-dom": "npm:^18.2.25"
+    awilix: "npm:^8.0.1"
+    eslint: "npm:^9.36.0"
+    pg: "npm:^8.13.0"
+    prop-types: "npm:^15.8.1"
+    react: "npm:^18.2.0"
+    react-dom: "npm:^18.2.0"
+    ts-node: "npm:^10.9.2"
+    typescript: "npm:^5.6.2"
+    typescript-eslint: "npm:^8.44.0"
+    vite: "npm:^5.2.11"
+    yalc: "npm:^1.0.0-pre.53"
+  peerDependencies:
+    "@medusajs/admin-sdk": ^2.5.0
+    "@medusajs/cli": ^2.5.0
+    "@medusajs/framework": ^2.5.0
+    "@medusajs/icons": ^2.5.0
+    "@medusajs/medusa": ^2.5.0
+    "@medusajs/test-utils": ^2.5.0
+    "@medusajs/ui": ^4.0.3
+    "@mikro-orm/cli": ^6.4.3
+    "@mikro-orm/core": ^6.4.3
+    "@mikro-orm/knex": ^6.4.3
+    "@mikro-orm/migrations": ^6.4.3
+    "@mikro-orm/postgresql": 6.4.3
+    awilix: ^8.0.1
+    pg: ^8.13.0
+  languageName: unknown
+  linkType: soft
+
 "@colors/colors@npm:1.6.0, @colors/colors@npm:^1.6.0":
   version: 1.6.0
   resolution: "@colors/colors@npm:1.6.0"
@@ -1685,56 +1735,6 @@ __metadata:
   checksum: 10c0/3775bb30087d4440b3f7406d5a057777d90e4b9f435af488a4923ef249e93615fb78565a85f173a186a076c7706a81d0d57d563a2624e4de2c5c9c66c486ce42
   languageName: node
   linkType: hard
-
-"@igorppbr/medusa-v2-fedex-fulfillment@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@igorppbr/medusa-v2-fedex-fulfillment@workspace:."
-  dependencies:
-    "@eslint/js": "npm:^9.36.0"
-    "@medusajs/admin-sdk": "npm:^2.5.0"
-    "@medusajs/cli": "npm:^2.5.0"
-    "@medusajs/framework": "npm:^2.5.0"
-    "@medusajs/icons": "npm:^2.5.0"
-    "@medusajs/medusa": "npm:^2.5.0"
-    "@medusajs/test-utils": "npm:^2.5.0"
-    "@medusajs/ui": "npm:^4.0.4"
-    "@mikro-orm/cli": "npm:^6.4.3"
-    "@mikro-orm/core": "npm:^6.4.3"
-    "@mikro-orm/knex": "npm:^6.4.3"
-    "@mikro-orm/migrations": "npm:^6.4.3"
-    "@mikro-orm/postgresql": "npm:^6.4.3"
-    "@swc/core": "npm:^1.5.7"
-    "@types/node": "npm:^20.0.0"
-    "@types/react": "npm:^18.3.2"
-    "@types/react-dom": "npm:^18.2.25"
-    awilix: "npm:^8.0.1"
-    eslint: "npm:^9.36.0"
-    pg: "npm:^8.13.0"
-    prop-types: "npm:^15.8.1"
-    react: "npm:^18.2.0"
-    react-dom: "npm:^18.2.0"
-    ts-node: "npm:^10.9.2"
-    typescript: "npm:^5.6.2"
-    typescript-eslint: "npm:^8.44.0"
-    vite: "npm:^5.2.11"
-    yalc: "npm:^1.0.0-pre.53"
-  peerDependencies:
-    "@medusajs/admin-sdk": ^2.5.0
-    "@medusajs/cli": ^2.5.0
-    "@medusajs/framework": ^2.5.0
-    "@medusajs/icons": ^2.5.0
-    "@medusajs/medusa": ^2.5.0
-    "@medusajs/test-utils": ^2.5.0
-    "@medusajs/ui": ^4.0.3
-    "@mikro-orm/cli": ^6.4.3
-    "@mikro-orm/core": ^6.4.3
-    "@mikro-orm/knex": ^6.4.3
-    "@mikro-orm/migrations": ^6.4.3
-    "@mikro-orm/postgresql": 6.4.3
-    awilix: ^8.0.1
-    pg: ^8.13.0
-  languageName: unknown
-  linkType: soft
 
 "@inquirer/checkbox@npm:^2.3.11":
   version: 2.5.0

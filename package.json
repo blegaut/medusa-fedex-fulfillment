@@ -1,16 +1,19 @@
 {
-  "name": "@igorppbr/medusa-v2-fedex-fulfillment",
-  "version": "1.0.4",
-  "description": "FedEx integration for Medusa V2",
-  "author": "Igor Ludgero Miura <igorlmiura@gmail.com>",
+  "name": "@blegaut/medusa-v2-fedex-fulfillment",
+  "version": "1.1.0",
+  "description": "FedEx fulfillment provider for Medusa v2 — Papapo fork with international customs, major-unit pricing (Medusa v2), and extended label metadata. Based on @igorppbr/medusa-v2-fedex-fulfillment.",
+  "author": "Bernard Légaut (fork); original by Igor Ludgero Miura <igorlmiura@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/igorppbr/medusa-fedex-fulfillment#readme",
+  "homepage": "https://github.com/blegaut/medusa-fedex-fulfillment#readme",
   "bugs": {
-    "url": "https://github.com/igorppbr/medusa-fedex-fulfillment/issues"
+    "url": "https://github.com/blegaut/medusa-fedex-fulfillment/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/igorppbr/medusa-fedex-fulfillment.git"
+    "url": "git+https://github.com/blegaut/medusa-fedex-fulfillment.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     ".medusa/server"
@@ -35,12 +38,13 @@
   },
   "keywords": [
     "medusa",
-    "plugin",
-    "medusa-plugin-shipping",
     "medusa-plugin",
     "medusa-v2",
+    "medusa-plugin-shipping",
     "medusa-plugin-integration",
-    "fedex"
+    "fedex",
+    "fulfillment",
+    "papapo"
   ],
   "scripts": {
     "build": "medusa plugin:build",

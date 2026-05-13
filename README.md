@@ -77,7 +77,7 @@ To install the FedEx Fulfillment Integration, follow these steps:
 1. **Install the package**
 
   ```bash
-  npm install @igorppbr/medusa-v2-fedex-fulfillment
+  npm install @blegaut/medusa-v2-fedex-fulfillment
   ```
 
 2. **Add the module and plugin to your `medusa-config.ts`**
@@ -89,7 +89,7 @@ To install the FedEx Fulfillment Integration, follow these steps:
      options: {
       providers: [
         {
-         resolve: "@igorppbr/medusa-v2-fedex-fulfillment/providers/fedex",
+         resolve: "@blegaut/medusa-v2-fedex-fulfillment/providers/fedex",
          id: "fedex",
          options: {
           isEnabled: true, // Enable or disable integration
@@ -107,7 +107,7 @@ To install the FedEx Fulfillment Integration, follow these steps:
   ],
   plugins: [
     {
-     resolve: "@igorppbr/medusa-v2-fedex-fulfillment", // This is used to enable custom admin widgets to see the tracking URLs and labels
+     resolve: "@blegaut/medusa-v2-fedex-fulfillment", // This is used to enable custom admin widgets to see the tracking URLs and labels
      options: {},
     }
   ]
