@@ -27,16 +27,36 @@ export type FedexRateRequestItem = {
         length: number;
         width: number;
         height: number;
-        units: "IN";
+        units: "CM";
     };
     groupPackageCount?: number;
 };
 
+/** One customs line built from Medusa fulfillment data for FedEx `commodities`. */
+export type FedexCustomsLineInput = {
+    description: string;
+    quantity: number;
+    /** Price per unit in major currency units (e.g. 49.99 USD). */
+    unitPrice: number;
+    currency: string;
+    harmonizedCode: string;
+    countryOfManufacture: string;
+    weight: {
+        units: "LB" | "KG";
+        value: number;
+    };
+};
+
 export type FedexShipmentResponse = {
-    trackingNumber: string;
+    trackingNumber: string | null;
     trackingUrl: string;
-    labelUrl: string;
-}
+    labelUrl: string | null;
+    transactionId?: string | null;
+    serviceType?: string | null;
+    serviceName?: string | null;
+    carrierCode?: string | null;
+    shipDatestamp?: string | null;
+};
 
 export const fedexMapping: Record<string, string> = {
     "FedEx Ground": "FEDEX_GROUND",

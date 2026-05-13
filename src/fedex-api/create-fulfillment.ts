@@ -1,19 +1,82 @@
 import { Logger } from "@medusajs/framework/types";
-import { FedexAddress, FedexContact, FedexRateRequestItem, FedexShipmentResponse } from "./types";
+import {
+    FedexAddress,
+    FedexContact,
+    FedexCustomsLineInput,
+    FedexRateRequestItem,
+    FedexShipmentResponse,
+} from "./types";
+
+/** True when both addresses have a country and they differ (international lane). */
+function isCrossBorderShipment(origin: FedexAddress, destination: FedexAddress): boolean {
+    const o = origin.countryCode?.trim().toUpperCase();
+    const d = destination.countryCode?.trim().toUpperCase();
+    return Boolean(o && d && o !== d);
+}
+
+/** FedEx recommends ASCII-only strings in create-shipment requests. */
+function toFedexAsciiDescription(input: string, maxLen = 120): string {
+    const stripped = input
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^\x20-\x7E]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return stripped.slice(0, maxLen) || "General merchandise";
+}
+
+/** Harmonized code: digits only, capped for typical FedEx validation. */
+function normalizeHarmonizedCode(raw: string): string {
+    const digits = raw.replace(/\D/g, "");
+    return digits.slice(0, 12) || "6109100012";
+}
+
+/**
+ * FedEx Ship API `customsClearanceDetail` for international commodity shipments.
+ * @see https://developer.fedex.com/api/en-us/catalog/ship/v1/docs.html
+ */
+function buildCustomsClearanceDetail(
+    accountNumber: string,
+    customsLines: FedexCustomsLineInput[]
+): Record<string, unknown> {
+    return {
+        dutiesPayment: {
+            paymentType: "SENDER",
+            payor: {
+                responsibleParty: {
+                    accountNumber: { value: accountNumber },
+                },
+            },
+        },
+        commodities: customsLines.map((line) => {
+            const lineTotal = Math.round(line.unitPrice * line.quantity * 100) / 100;
+            return {
+                description: toFedexAsciiDescription(line.description),
+                countryOfManufacture: line.countryOfManufacture.trim().toUpperCase().slice(0, 2),
+                harmonizedCode: normalizeHarmonizedCode(line.harmonizedCode),
+                quantity: line.quantity,
+                quantityUnits: "EA",
+                weight: {
+                    units: line.weight.units,
+                    value: line.weight.value,
+                },
+                unitPrice: {
+                    amount: line.unitPrice,
+                    currency: line.currency,
+                },
+                customsValue: {
+                    amount: lineTotal,
+                    currency: line.currency,
+                },
+            };
+        }),
+    };
+}
 
 /**
  * Creates a FedEx shipment fulfillment by sending a request to the FedEx API.
  *
- * @param baseUrl - The base URL of the FedEx API.
- * @param token - The Bearer token used for authentication with the FedEx API.
- * @param accountNumber - The FedEx account number to be used for the shipment.
- * @param origin - The origin address for the shipment, conforming to the FedexAddress type.
- * @param destination - The destination address for the shipment, conforming to the FedexAddress type.
- * @param items - An array of items to be shipped, each conforming to the FedexRateRequestItem type.
- * @param shippingMethod - The FedEx shipping method/service type to be used (e.g., "FEDEX_GROUND").
- * @param logger - (Optional) Logger instance for logging debug and error information.
- * @returns A promise that resolves to a FedexShipmentResponse object containing the tracking number, tracking URL, and label URL.
- * @throws Will throw an error if the FedEx API request fails or returns a non-OK response.
+ * @param customsLines - One entry per fulfilled line for international lanes; pass `null` for domestic.
  */
 export const createFulfillment = async (
     baseUrl: string,
@@ -25,48 +88,63 @@ export const createFulfillment = async (
     destinationContact: FedexContact,
     items: FedexRateRequestItem[],
     shippingMethod: string,
+    customsLines: FedexCustomsLineInput[] | null,
     logger?: Logger | Console
 ): Promise<FedexShipmentResponse> => {
-    const shipmentPayload = {
-        accountNumber: { value: accountNumber },
-        labelResponseOptions: "URL_ONLY",
-        requestedShipment: {
-            shipper: {
-                address: origin,
-                contact: originContact,
+    const crossBorder = isCrossBorderShipment(origin, destination);
+    if (crossBorder && (!customsLines || customsLines.length === 0)) {
+        throw new Error(
+            "FedEx international shipment requires customs line items derived from order/fulfillment data"
+        );
+    }
+
+    const requestedShipment: Record<string, unknown> = {
+        shipper: {
+            address: origin,
+            contact: originContact,
+        },
+        recipients: [
+            {
+                address: destination,
+                contact: destinationContact,
             },
-            recipients: [
-                {
-                    address: destination,
-                    contact: destinationContact,
-                }
-            ],
-            pickupType: "DROPOFF_AT_FEDEX_LOCATION",
-            packagingType: "YOUR_PACKAGING",
-            requestedPackageLineItems: items,
-            serviceType: shippingMethod,
-            shipTimestamp: new Date().toISOString(),
-            labelSpecification: {
-                imageType: "PDF",
-                labelStockType: "PAPER_4X6",
-                labelFormatType: "COMMON2D",
-                labelRotation: "NONE"
-            },
-            shippingChargesPayment: {
-                paymentType: "SENDER",
-                payor: {
-                    responsibleParty: {
-                        accountNumber: { value: accountNumber },
-                    },
+        ],
+        pickupType: "DROPOFF_AT_FEDEX_LOCATION",
+        packagingType: "YOUR_PACKAGING",
+        requestedPackageLineItems: items,
+        serviceType: shippingMethod,
+        shipTimestamp: new Date().toISOString(),
+        labelSpecification: {
+            imageType: "PDF",
+            labelStockType: "PAPER_4X6",
+            labelFormatType: "COMMON2D",
+            labelRotation: "NONE",
+        },
+        shippingChargesPayment: {
+            paymentType: "SENDER",
+            payor: {
+                responsibleParty: {
+                    accountNumber: { value: accountNumber },
                 },
             },
         },
     };
 
-    if (logger) {
-        logger.log(
-            `FedEx create shipment payload: ${JSON.stringify(shipmentPayload, null, 2)}`
+    if (crossBorder && customsLines) {
+        requestedShipment.customsClearanceDetail = buildCustomsClearanceDetail(
+            accountNumber,
+            customsLines
         );
+    }
+
+    const shipmentPayload = {
+        accountNumber: { value: accountNumber },
+        labelResponseOptions: "URL_ONLY",
+        requestedShipment,
+    };
+
+    if (logger) {
+        logger.log(`FedEx create shipment payload: ${JSON.stringify(shipmentPayload, null, 2)}`);
     }
 
     const response = await fetch(`${baseUrl}/ship/v1/shipments`, {
@@ -89,17 +167,16 @@ export const createFulfillment = async (
     const result = await response.json();
 
     if (logger) {
-        logger.log(
-            `FedEx create shipment response: ${JSON.stringify(result, null, 2)}`
-        );
+        logger.log(`FedEx create shipment response: ${JSON.stringify(result, null, 2)}`);
     }
 
     const shipmentDetail = result.output?.transactionShipments?.[0] || {};
+    const completed = shipmentDetail.completedShipmentDetail || {};
 
     const trackingNumber = shipmentDetail.masterTrackingNumber || null;
     const firstPiece = shipmentDetail.pieceResponses?.[0];
-    const firstDoc   = firstPiece?.packageDocuments?.[0];
-    const labelUrl   = firstDoc?.url || null;
+    const firstDoc = firstPiece?.packageDocuments?.[0];
+    const labelUrl = firstDoc?.url || null;
     const trackingUrl = trackingNumber
         ? `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`
         : "";
@@ -108,5 +185,10 @@ export const createFulfillment = async (
         trackingNumber,
         trackingUrl,
         labelUrl,
+        transactionId: result.transactionId ?? null,
+        serviceType: shipmentDetail.serviceType ?? null,
+        serviceName: shipmentDetail.serviceName ?? null,
+        carrierCode: completed.carrierCode ?? null,
+        shipDatestamp: shipmentDetail.shipDatestamp ?? null,
     };
 };

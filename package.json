@@ -45,6 +45,9 @@
   "scripts": {
     "build": "medusa plugin:build",
     "dev": "medusa plugin:develop",
+    "plugin:develop": "medusa plugin:develop",
+    "plugin:publish": "medusa plugin:publish",
+    "plugin:push:store": "yarn build && npx yalc push",
     "prepublishOnly": "medusa plugin:build",
     "lint": "npx eslint src",
     "lint:fix": "npx eslint src --fix"

@@ -21,10 +21,12 @@ import { Modules } from "@medusajs/framework/utils";
 import {
   FedexAddress,
   FedexContact,
+  FedexCustomsLineInput,
   FedexRateRequestItem,
   FedexShipmentResponse,
 } from "../fedex-api/types";
 import { createFulfillment } from "../fedex-api/create-fulfillment";
+import { clampPositiveMajor, readMedusaMajorAmount } from "../utils/medusa-money";
 
 type WorkflowInput = {
   token: string;
@@ -101,6 +103,119 @@ function stateNameToCode(stateName: string): string {
   return states[stateName.trim().toLowerCase()] || stateName;
 }
 
+function normalizeCountryCode(code: string | undefined | null): string {
+  return (code ?? "").trim().toUpperCase().slice(0, 2);
+}
+
+function isCrossBorderForCustoms(origin: FedexAddress, destination: FedexAddress): boolean {
+  const o = normalizeCountryCode(origin.countryCode);
+  const d = normalizeCountryCode(destination.countryCode);
+  return Boolean(o && d && o !== d);
+}
+
+function resolveOrderCurrency(order: Partial<FulfillmentOrderDTO> | undefined): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = (order as any)?.currency_code;
+  return typeof c === "string" && c.length >= 3 ? c.toUpperCase().slice(0, 3) : "USD";
+}
+
+/**
+ * Resolves one fulfillment line's **unit price in major currency units** for FedEx customs.
+ *
+ * Medusa **v2** stores prices in **major** units (e.g. 10 = $10.00), not smallest units like v1 cents.
+ * Values may still arrive as `number` or serialized `BigNumber` shapes — use {@link readMedusaMajorAmount}.
+ *
+ * Resolution order:
+ * 1. `item.total` / `item.quantity` when `total` is present.
+ * 2. `item.unit_price` on the fulfillment snapshot.
+ * 3. Parent order line via `item.line_item_id` → `order.items[].unit_price` or `.total`/`.quantity`.
+ * 4. Fallback **0.01** if nothing is found.
+ */
+function resolveLineItemUnitPriceMajor(
+  item: Partial<FulfillmentItemDTO>,
+  order: Partial<FulfillmentOrderDTO> | undefined
+): number {
+  const rec = item as Record<string, unknown>;
+  const qty = Math.max(1, Number(rec.quantity) || 1);
+
+  const totalMajor = readMedusaMajorAmount(rec.total);
+  if (totalMajor !== null && totalMajor > 0) {
+    return clampPositiveMajor(totalMajor / qty);
+  }
+
+  const unitMajor = readMedusaMajorAmount(rec.unit_price);
+  if (unitMajor !== null && unitMajor > 0) {
+    return clampPositiveMajor(unitMajor);
+  }
+
+  const lineItemId = rec.line_item_id as string | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lines = (order as any)?.items as any[] | undefined;
+  if (lineItemId && Array.isArray(lines)) {
+    const li = lines.find((x) => x?.id === lineItemId);
+    const liUnit = readMedusaMajorAmount(li?.unit_price);
+    if (liUnit !== null && liUnit > 0) {
+      return clampPositiveMajor(liUnit);
+    }
+    const liQty = Math.max(1, Number(li?.quantity) || 1);
+    const liTotal = readMedusaMajorAmount(li?.total);
+    if (liTotal !== null && liTotal > 0) {
+      return clampPositiveMajor(liTotal / liQty);
+    }
+  }
+
+  return 0.01;
+}
+
+function buildFedexCustomsLines(
+  inputItems: Partial<Omit<FulfillmentItemDTO, "fulfillment">>[],
+  order: Partial<FulfillmentOrderDTO> | undefined,
+  packageLineItems: FedexRateRequestItem[],
+  defaultManufactureCountry: string
+): FedexCustomsLineInput[] {
+  const currency = resolveOrderCurrency(order);
+  const origin2 = normalizeCountryCode(defaultManufactureCountry) || "CO";
+
+  return inputItems.map((item, index) => {
+    const row = item as FulfillmentItemDTO & {
+      variant?: ProductVariantDTO;
+    } & Record<string, unknown>;
+    const variant = row.variant;
+    const meta = (variant?.metadata ?? {}) as Record<string, unknown>;
+    const hsRaw = (meta.hs_code ?? meta.harmonized_code ?? meta.HSCode ?? "") as string;
+    // 640320000000 - Footwear with outer soles of leather, and uppers which consist of leather straps cross
+    //  the instep and around the big toe.
+    const hs = typeof hsRaw === "string" && hsRaw.length > 0 ? hsRaw : "640320000000";
+    const comRaw = (meta.country_of_manufacture ?? meta.countryOfManufacture ?? "") as string;
+    const com =
+      typeof comRaw === "string" && comRaw.trim().length >= 2
+        ? normalizeCountryCode(comRaw)
+        : origin2;
+
+    const title =
+      (typeof row.title === "string" && row.title) ||
+      (typeof row.product_title === "string" && row.product_title) ||
+      (variant?.title ? String(variant.title) : "") ||
+      "General merchandise";
+
+    const qty = Math.max(1, Number(row.quantity) || 1);
+    const unitPrice = resolveLineItemUnitPriceMajor(item, order);
+    const w =
+      packageLineItems[index]?.weight ??
+      packageLineItems[0]?.weight ?? { units: "KG" as const, value: 1 };
+
+    return {
+      description: title,
+      quantity: qty,
+      unitPrice,
+      currency,
+      harmonizedCode: hs,
+      countryOfManufacture: com,
+      weight: w,
+    };
+  });
+}
+
 /**
  * Step to create a FedEx shipment.
  */
@@ -161,7 +276,7 @@ const createFedexShipment = createStep(
           length: item.variant?.length ? item.variant.length : 1,
           width: item.variant?.width ? item.variant.width : 1,
           height: item.variant?.height ? item.variant.height : 1,
-          units: "IN",
+          units: "CM",
         },
       })
     );
@@ -182,7 +297,7 @@ const createFedexShipment = createStep(
       ),
       stateOrProvinceCode: stateNameToCode(recipient.province),
       postalCode: recipient.postal_code,
-      countryCode: recipient.country_code,
+      countryCode: normalizeCountryCode(recipient.country_code),
       city: recipient.city || "",
     };
 
@@ -192,7 +307,7 @@ const createFedexShipment = createStep(
       ),
       stateOrProvinceCode: stateNameToCode(location.address.province),
       postalCode: location.address.postal_code,
-      countryCode: location.address.country_code,
+      countryCode: normalizeCountryCode(location.address.country_code),
       city: location.address.city || "",
     };
 
@@ -249,6 +364,16 @@ const createFedexShipment = createStep(
       phoneNumber: salesChannel.metadata.phone.toString(),
     };
 
+    const crossBorder = isCrossBorderForCustoms(originAddress, destinationAddress);
+    const customsLines: FedexCustomsLineInput[] | null = crossBorder
+      ? buildFedexCustomsLines(
+          input.items,
+          input.order,
+          orderItems,
+          location.address.country_code ?? ""
+        )
+      : null;
+
     const shipment = await createFulfillment(
       input.baseUrl,
       input.token,
@@ -259,6 +384,7 @@ const createFedexShipment = createStep(
       customerContact,
       orderItems,
       shippingMethodCode,
+      customsLines,
       input.debug ? console : undefined
     );
 
@@ -278,14 +404,19 @@ const createShipmentWorkflow = createWorkflow(
       labels: [
         {
           tracking_url: shipment.trackingUrl,
-          label_url: shipment.labelUrl,
-          tracking_number: shipment.trackingNumber,
+          label_url: shipment.labelUrl ?? "",
+          tracking_number: shipment.trackingNumber ?? "",
         },
       ],
       data: {
         tracking_url: shipment.trackingUrl,
-        label_url: shipment.labelUrl,
-        tracking_number: shipment.trackingNumber,
+        label_url: shipment.labelUrl ?? "",
+        tracking_number: shipment.trackingNumber ?? "",
+        fedex_transaction_id: shipment.transactionId ?? null,
+        fedex_service_type: shipment.serviceType ?? null,
+        fedex_service_name: shipment.serviceName ?? null,
+        fedex_carrier_code: shipment.carrierCode ?? null,
+        fedex_ship_datestamp: shipment.shipDatestamp ?? null,
       },
     };
 
